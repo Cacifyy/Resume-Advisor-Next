@@ -1,16 +1,22 @@
 "use client";
 
-import Link from "next/link";
+import { useAuth } from "../../hooks/useAuth";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
+import Link from "next/link";
 
 export default function LoginPage() {
+  const { signIn } = useAuth();
+  const router = useRouter();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Logging in with:", email, password);
-    // TODO: Connect to backend authentication API later
+    // Pretend validation passed
+    signIn();
+    router.push("/"); // redirect to main app
   };
 
   return (

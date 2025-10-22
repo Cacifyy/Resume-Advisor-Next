@@ -1,14 +1,15 @@
 "use client";
 
-import Link from "next/link";
+import { useAuth } from "../../hooks/useAuth";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
+import Link from "next/link";
 
 export default function SignupPage() {
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    password: "",
-  });
+  const { signIn } = useAuth();
+  const router = useRouter();
+
+  const [form, setForm] = useState({ name: "", email: "", password: "" });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -16,8 +17,9 @@ export default function SignupPage() {
 
   const handleSignup = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Creating account:", form);
-    // TODO: Connect to backend user registration API later
+    // Pretend account created successfully
+    signIn();
+    router.push("/");
   };
 
   return (
