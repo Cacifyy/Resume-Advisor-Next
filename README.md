@@ -48,12 +48,6 @@ yarn dev
 pnpm dev
 ```
 
-4. Open [http://localhost:3000](http://localhost:3000) in your browser to see the application.
-
-### Accessing the Resume Builder
-
-Navigate to [http://localhost:3000/content-builder](http://localhost:3000/content-builder) to access the resume content builder page.
-
 ## 📁 Project Structure
 
 ```
@@ -113,25 +107,6 @@ The application uses a **Mobile-First** design strategy with Tailwind CSS breakp
   - Fixed-width panels (720px each)
   - Visible real-time preview panel
 
-### Key Responsive Features
-
-```tsx
-// Main container: single column on mobile, two columns on desktop
-<div className="flex flex-col lg:flex-row">
-
-// Form panel: full width on mobile, fixed 720px on desktop
-<div className="w-full lg:w-[720px] h-auto lg:h-[780px]">
-
-// Preview panel: hidden on mobile, visible on desktop
-<div className="hidden lg:block w-[720px] h-[780px]">
-
-// Responsive text sizing
-<h2 className="text-sm md:text-base">
-
-// Responsive spacing
-<div className="p-4 md:p-6">
-```
-
 ## 🧩 Component Architecture
 
 ### UI Components (`components/ui/`)
@@ -170,13 +145,6 @@ Domain-specific components for resume building:
 - **UI Components**: Custom-built with React
 - **Font**: [Geist Font Family](https://vercel.com/font)
 
-## 📚 Documentation
-
-For detailed component documentation, see:
-
-- [COMPONENTS.md](./COMPONENTS.md) - Comprehensive component API documentation (Chinese)
-- [RWD_SUMMARY.md](./RWD_SUMMARY.md) - Responsive design implementation details (Chinese)
-
 ## 🛠️ Development
 
 ### Available Scripts
@@ -207,16 +175,16 @@ This project uses:
 
 ## 🔄 Future Enhancements
 
-- [ ] Form validation with Zod or Yup
+- [ ] Form validation with Zod
 - [ ] Drag-and-drop section reordering
 - [ ] Auto-save functionality
 - [ ] AI-powered Smartfill feature
 - [ ] PDF export functionality
 - [ ] Unit and integration tests
 - [x] ✅ Complete RWD implementation
-- [ ] Dark mode support
-- [ ] Touch gesture optimizations (swipe to delete, etc.)
-- [ ] Internationalization (i18n)
+- [ ] Dark mode support (nice to have)
+- [ ] Touch gesture optimizations (swipe to delete, etc.) (nice to have)
+- [ ] Internationalization (i18n) 
 
 ## 📄 License
 
