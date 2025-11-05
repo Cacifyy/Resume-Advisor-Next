@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Navigation } from "@/components/resume/Navigation";
 import { ProgressBar } from "@/components/resume/ProgressBar";
 import { Breadcrumb } from "@/components/resume/Breadcrumb";
@@ -15,9 +15,24 @@ import type {
   Leadership,
 } from "@/types/resume";
 import { DownloadIcon } from "@radix-ui/react-icons";
+import { generateLaTeXPreviewURL } from "@/lib/latex-client";
+import { generateLatexFromData } from "@/lib/latex-generator";
 
 export default function ContentBuilderPage() {
+  // State for PDF generation
+  const [pdfPreviewURL, setPdfPreviewURL] = useState<string | null>(null);
+  const [isPdfGenerating, setIsPdfGenerating] = useState(false);
+
+  // Resume form state (restored from previous implementation)
   const [resumeData, setResumeData] = useState<ResumeData>({
+    personalInfo: {
+      name: "First Last",
+      address: "123 Street Name, Town, State 12345",
+      phone: "123-456-7890",
+      email: "email@gmail.com",
+      linkedin: "linkedin.com/in/username",
+      github: "github.com/username",
+    },
     education: [
       {
         id: "1",
@@ -77,7 +92,7 @@ export default function ContentBuilderPage() {
         technologies: "Java, Eclipse, JavaFX",
         date: "October 2020",
         description:
-          "• Designed a sample banking transaction system using Java to simulate the common functions of using a bank account.\n• Used JavaFX to create a GUI that supports actions such as creating an account, deposit, withdraw, list all accounts, etc.\n• Implemented object-oriented programming practices such as inheritance to create different account types and databases.",
+          "• Designed a sample banking transaction system using Java to simulate the common functions of using a bank account.\n• Used JavaFX to create a GUI that supports actions such as creating an account, deposit, withdraw, list all accounts, etc.\n• Implemented object-oriented programming practices such as inheritance to create different acount types and databases.",
         order: 2,
       },
     ],
@@ -229,11 +244,6 @@ export default function ContentBuilderPage() {
     }));
   };
 
-  const previewPdf = () => {
-    // Navigate to the PDF preview/download page
-    window.location.href = "/content-builder/preview";
-  };
-
   // Generic move helper for any top-level array in resumeData
   const moveItemIn = useCallback(
     <T extends { id: string; order?: number }>(
@@ -309,6 +319,118 @@ export default function ContentBuilderPage() {
     [removeAndNormalize],
   );
 
+  const compileLaTeX = async () => {
+    setLoading(true);
+    setCompileError(null);
+    setPdfPreviewURL(null); // Clear previous preview
+
+    try {
+      // 從表單數據生成 LaTeX
+      const latexContent =
+        mode === "form" ? generateLatexFromData(resumeData) : latex;
+
+      console.log("[Content Builder] Compiling LaTeX...");
+      console.log("[Content Builder] LaTeX length:", latexContent.length);
+
+      // 編譯並獲取預覽 URL
+      const previewURL = await generateLaTeXPreviewURL(latexContent);
+      console.log("[Content Builder] Preview URL:", previewURL);
+
+      setPdfPreviewURL(previewURL);
+      console.log("[Content Builder] Preview generated successfully");
+    } catch (error) {
+      console.error("[Content Builder] LaTeX compilation failed:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "LaTeX compilation failed";
+      setCompileError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Download PDF
+   */
+  async function downloadPdf() {
+    setIsPdfGenerating(true);
+    setCompileError(null);
+
+    try {
+      // Use the current LaTeX content (from form or editor)
+      const latexContent =
+        mode === "latex" ? latex : generateLatexFromData(resumeData);
+
+      // Call the API to compile LaTeX to PDF
+      const response = await fetch("/api/compile-latex", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ latex: latexContent }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to compile LaTeX");
+      }
+
+      // Get the PDF blob
+      const blob = await response.blob();
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `resume-${Date.now()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+
+      // Cleanup
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      console.log("PDF downloaded successfully!");
+    } catch (err) {
+      const error = err as Error;
+      console.error("PDF download failed:", error);
+      setCompileError(error.message || "Failed to download PDF");
+    } finally {
+      setIsPdfGenerating(false);
+    }
+  }
+
+  // LaTeX editor
+  const [latex, setLatex] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [compileError, setCompileError] = useState<string | null>(null);
+  const debounceRef = useRef<number | null>(null);
+
+  // UI mode: 'form' or 'latex'
+  const [mode, setMode] = useState<"form" | "latex">("form");
+
+  // Sync LaTeX with form data whenever resumeData changes
+  useEffect(() => {
+    if (mode === "form") {
+      const generatedLatex = generateLatexFromData(resumeData);
+      console.log(
+        "[Content Builder] Syncing LaTeX with form data",
+        generatedLatex,
+      );
+      setLatex(generatedLatex);
+    }
+  }, [resumeData, mode]);
+
+  useEffect(() => {
+    if (debounceRef.current) window.clearTimeout(debounceRef.current);
+    debounceRef.current = window.setTimeout(() => {
+      void compileLaTeX();
+    }, 700);
+    return () => {
+      if (debounceRef.current) window.clearTimeout(debounceRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [latex]);
+
   return (
     <div className="relative flex h-screen flex-col overflow-hidden bg-gradient-to-r from-gray-50 to-gray-50">
       {/* Navigation */}
@@ -323,374 +445,432 @@ export default function ContentBuilderPage() {
 
       {/* Main Content */}
       <div className="flex min-h-0 flex-1 flex-col items-start justify-center overflow-hidden lg:flex-row">
-        {/* Left Panel - Form */}
+        {/* Left Panel */}
         <div className="flex h-full w-full flex-col border-gray-200 bg-white lg:h-full lg:w-[720px] lg:border-r">
-          <Breadcrumb
-            items={breadcrumbItems}
-            onSelect={(id) => {
-              if (!id) return;
-              // mark selected breadcrumb as active
-              setBreadcrumbItems((prev) =>
-                prev.map((it) => ({ ...it, active: it.id === id })),
-              );
+          <div className="border-b p-4">
+            <div className="flex items-center gap-2">
+              <button
+                className={`rounded px-3 py-1 ${mode === "form" ? "bg-gray-100 font-semibold" : "text-gray-600"}`}
+                onClick={() => setMode("form")}
+              >
+                Form
+              </button>
+              <button
+                className={`rounded px-3 py-1 ${mode === "latex" ? "bg-gray-100 font-semibold" : "text-gray-600"}`}
+                onClick={() => setMode("latex")}
+              >
+                LaTeX
+              </button>
+            </div>
+          </div>
 
-              const el = document.getElementById(id);
-              if (el) {
-                // scrollIntoView will scroll the nearest scrollable ancestor (the current div)
-                el.scrollIntoView({ behavior: "smooth", block: "start" });
-              }
-            }}
-          />
           <div className="h-full space-y-4 overflow-auto p-4 md:space-y-6 md:p-6 lg:h-full">
-            {/* Education Section */}
-            <section id="education">
-              <h2 className="mb-3 text-sm font-bold text-gray-900 md:mb-4 md:text-base">
-                Education
-              </h2>
-              <div className="space-y-3 rounded-md bg-gray-50 p-3 md:p-4">
-                {resumeData.education.map((edu, idx) => {
-                  const count = resumeData.education.length;
-                  const pos = typeof edu.order === "number" ? edu.order : idx;
-                  const showControls = count > 1;
-                  return (
-                    <SectionCard
-                      key={edu.id}
-                      title={edu.universityName || "New Education"}
-                      showControls={showControls}
-                      onDelete={() => deleteEducation(edu.id)}
-                      onMoveUp={() => moveItemIn("education", edu.id, "up")}
-                      onMoveDown={() => moveItemIn("education", edu.id, "down")}
-                      disableMoveUp={pos === 0}
-                      disableMoveDown={pos === count - 1}
-                    >
-                      <FormField
-                        label="University Name"
-                        name="universityName"
-                        value={edu.universityName}
-                        onChange={(_, value) =>
-                          updateEducation(edu.id, "universityName", value)
-                        }
-                      />
-                      <FormField
-                        label="Degree"
-                        name="degree"
-                        value={edu.degree}
-                        onChange={(_, value) =>
-                          updateEducation(edu.id, "degree", value)
-                        }
-                      />
-                      <FormField
-                        label="Location"
-                        name="location"
-                        value={edu.location}
-                        onChange={(_, value) =>
-                          updateEducation(edu.id, "location", value)
-                        }
-                      />
-                      <FormField
-                        label="Dates Attended"
-                        name="datesAttended"
-                        value={edu.datesAttended}
-                        onChange={(_, value) =>
-                          updateEducation(edu.id, "datesAttended", value)
-                        }
-                      />
-                      <FormField
-                        label="Relevant Coursework"
-                        name="coursework"
-                        value={edu.coursework || ""}
-                        onChange={(_, value) =>
-                          updateEducation(edu.id, "coursework", value)
-                        }
-                        type="textarea"
-                      />
-                    </SectionCard>
-                  );
-                })}
-              </div>
-              <Button
-                variant="secondary"
-                className="mt-3 w-full"
-                onClick={addEducation}
-              >
-                + Add Education
-              </Button>
-            </section>
+            {mode === "form" ? (
+              <>
+                <Breadcrumb
+                  items={breadcrumbItems}
+                  onSelect={(id) => {
+                    if (!id) return;
+                    setBreadcrumbItems((prev) =>
+                      prev.map((it) => ({ ...it, active: it.id === id })),
+                    );
+                    const el = document.getElementById(id);
+                    if (el)
+                      el.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }}
+                />
 
-            {/* Experience Section */}
-            <section id="experience">
-              <h2 className="mb-3 text-sm font-bold text-gray-900 md:mb-4 md:text-base">
-                Experience
-              </h2>
-              <div className="space-y-3 rounded-md bg-gray-50 p-3 md:p-4">
-                {resumeData.experience.map((exp, idx) => {
-                  const count = resumeData.experience.length;
-                  const pos = typeof exp.order === "number" ? exp.order : idx;
-                  const showControls = count > 1;
-                  return (
-                    <SectionCard
-                      key={exp.id}
-                      title={`${exp.jobTitle || "New Position"}${exp.company ? `, ${exp.company}` : ""}`}
-                      showControls={showControls}
-                      onDelete={() => deleteExperience(exp.id)}
-                      onMoveUp={() => moveItemIn("experience", exp.id, "up")}
-                      onMoveDown={() =>
-                        moveItemIn("experience", exp.id, "down")
+                {/* Education Section */}
+                <section id="education">
+                  <h2 className="mb-3 text-sm font-bold text-gray-900 md:mb-4 md:text-base">
+                    Education
+                  </h2>
+                  <div className="space-y-3 rounded-md bg-gray-50 p-3 md:p-4">
+                    {resumeData.education.map((edu, idx) => {
+                      const count = resumeData.education.length;
+                      const pos =
+                        typeof edu.order === "number" ? edu.order : idx;
+                      const showControls = count > 1;
+                      return (
+                        <SectionCard
+                          key={edu.id}
+                          title={edu.universityName || "New Education"}
+                          showControls={showControls}
+                          onDelete={() => deleteEducation(edu.id)}
+                          onMoveUp={() => moveItemIn("education", edu.id, "up")}
+                          onMoveDown={() =>
+                            moveItemIn("education", edu.id, "down")
+                          }
+                          disableMoveUp={pos === 0}
+                          disableMoveDown={pos === count - 1}
+                        >
+                          <FormField
+                            label="University Name"
+                            name="universityName"
+                            value={edu.universityName}
+                            onChange={(_, value) =>
+                              updateEducation(edu.id, "universityName", value)
+                            }
+                          />
+                          <FormField
+                            label="Degree"
+                            name="degree"
+                            value={edu.degree}
+                            onChange={(_, value) =>
+                              updateEducation(edu.id, "degree", value)
+                            }
+                          />
+                          <FormField
+                            label="Location"
+                            name="location"
+                            value={edu.location}
+                            onChange={(_, value) =>
+                              updateEducation(edu.id, "location", value)
+                            }
+                          />
+                          <FormField
+                            label="Dates Attended"
+                            name="datesAttended"
+                            value={edu.datesAttended}
+                            onChange={(_, value) =>
+                              updateEducation(edu.id, "datesAttended", value)
+                            }
+                          />
+                          <FormField
+                            label="Relevant Coursework"
+                            name="coursework"
+                            value={edu.coursework || ""}
+                            onChange={(_, value) =>
+                              updateEducation(edu.id, "coursework", value)
+                            }
+                            type="textarea"
+                          />
+                        </SectionCard>
+                      );
+                    })}
+                  </div>
+                  <Button
+                    variant="secondary"
+                    className="mt-3 w-full"
+                    onClick={addEducation}
+                  >
+                    + Add Education
+                  </Button>
+                </section>
+
+                {/* Experience Section */}
+                <section id="experience">
+                  <h2 className="mb-3 text-sm font-bold text-gray-900 md:mb-4 md:text-base">
+                    Experience
+                  </h2>
+                  <div className="space-y-3 rounded-md bg-gray-50 p-3 md:p-4">
+                    {resumeData.experience.map((exp, idx) => {
+                      const count = resumeData.experience.length;
+                      const pos =
+                        typeof exp.order === "number" ? exp.order : idx;
+                      const showControls = count > 1;
+                      return (
+                        <SectionCard
+                          key={exp.id}
+                          title={`${exp.jobTitle || "New Position"}${exp.company ? `, ${exp.company}` : ""}`}
+                          showControls={showControls}
+                          onDelete={() => deleteExperience(exp.id)}
+                          onMoveUp={() =>
+                            moveItemIn("experience", exp.id, "up")
+                          }
+                          onMoveDown={() =>
+                            moveItemIn("experience", exp.id, "down")
+                          }
+                          disableMoveUp={pos === 0}
+                          disableMoveDown={pos === count - 1}
+                        >
+                          <FormField
+                            label="Job Title"
+                            name="jobTitle"
+                            value={exp.jobTitle}
+                            onChange={(_, value) =>
+                              updateExperience(exp.id, "jobTitle", value)
+                            }
+                          />
+                          <FormField
+                            label="Company"
+                            name="company"
+                            value={exp.company}
+                            onChange={(_, value) =>
+                              updateExperience(exp.id, "company", value)
+                            }
+                          />
+                          <FormField
+                            label="Location"
+                            name="location"
+                            value={exp.location}
+                            onChange={(_, value) =>
+                              updateExperience(exp.id, "location", value)
+                            }
+                          />
+                          <FormField
+                            label="Dates"
+                            name="dates"
+                            value={exp.dates}
+                            onChange={(_, value) =>
+                              updateExperience(exp.id, "dates", value)
+                            }
+                          />
+                          <FormField
+                            label="Description"
+                            name=""
+                            value={exp.description}
+                            onChange={(_, value) =>
+                              updateExperience(exp.id, "description", value)
+                            }
+                            type="textarea"
+                          />
+                          <Button variant="gradient" className="mt-2 w-full">
+                            ✨ Smartfill (AI)
+                          </Button>
+                        </SectionCard>
+                      );
+                    })}
+                  </div>
+                  <Button
+                    variant="secondary"
+                    className="mt-3 w-full"
+                    onClick={addExperience}
+                  >
+                    + Add Experience
+                  </Button>
+                </section>
+
+                {/* Projects Section */}
+                <section id="projects">
+                  <h2 className="mb-3 text-sm font-bold text-gray-900 md:mb-4 md:text-base">
+                    Projects
+                  </h2>
+                  <div className="space-y-3 rounded-md bg-gray-50 p-3 md:p-4">
+                    {resumeData.projects.map((proj, idx) => {
+                      const count = resumeData.projects.length;
+                      const pos =
+                        typeof proj.order === "number" ? proj.order : idx;
+                      const showControls = count > 1;
+                      return (
+                        <SectionCard
+                          key={proj.id}
+                          title={proj.projectName || "New Project"}
+                          showControls={showControls}
+                          onDelete={() => deleteProject(proj.id)}
+                          onMoveUp={() => moveItemIn("projects", proj.id, "up")}
+                          onMoveDown={() =>
+                            moveItemIn("projects", proj.id, "down")
+                          }
+                          disableMoveUp={pos === 0}
+                          disableMoveDown={pos === count - 1}
+                        >
+                          <FormField
+                            label="Project Name"
+                            name="projectName"
+                            value={proj.projectName}
+                            onChange={(_, value) =>
+                              updateProject(proj.id, "projectName", value)
+                            }
+                          />
+                          <FormField
+                            label="Technologies"
+                            name="technologies"
+                            value={proj.technologies}
+                            onChange={(_, value) =>
+                              updateProject(proj.id, "technologies", value)
+                            }
+                          />
+                          <FormField
+                            label="Date"
+                            name="date"
+                            value={proj.date}
+                            onChange={(_, value) =>
+                              updateProject(proj.id, "date", value)
+                            }
+                          />
+                          <FormField
+                            label="Description (Bullet Points)"
+                            name="description"
+                            value={proj.description}
+                            onChange={(_, value) =>
+                              updateProject(proj.id, "description", value)
+                            }
+                            type="textarea"
+                          />
+                        </SectionCard>
+                      );
+                    })}
+                  </div>
+                  <Button
+                    variant="secondary"
+                    className="mt-3 w-full"
+                    onClick={addProject}
+                  >
+                    + Add Project
+                  </Button>
+                </section>
+
+                {/* Technical Skills Section */}
+                <section id="technical-skills">
+                  <h2 className="mb-3 text-sm font-bold text-gray-900 md:mb-4 md:text-base">
+                    Technical Skills
+                  </h2>
+                  <div className="space-y-3">
+                    <FormField
+                      label="Languages"
+                      name="languages"
+                      value={resumeData.technicalSkills.languages}
+                      onChange={(_, value) =>
+                        setResumeData((prev) => ({
+                          ...prev,
+                          technicalSkills: {
+                            ...prev.technicalSkills,
+                            languages: value,
+                          },
+                        }))
                       }
-                      disableMoveUp={pos === 0}
-                      disableMoveDown={pos === count - 1}
-                    >
-                      <FormField
-                        label="Job Title"
-                        name="jobTitle"
-                        value={exp.jobTitle}
-                        onChange={(_, value) =>
-                          updateExperience(exp.id, "jobTitle", value)
-                        }
-                      />
-                      <FormField
-                        label="Company"
-                        name="company"
-                        value={exp.company}
-                        onChange={(_, value) =>
-                          updateExperience(exp.id, "company", value)
-                        }
-                      />
-                      <FormField
-                        label="Location"
-                        name="location"
-                        value={exp.location}
-                        onChange={(_, value) =>
-                          updateExperience(exp.id, "location", value)
-                        }
-                      />
-                      <FormField
-                        label="Dates"
-                        name="dates"
-                        value={exp.dates}
-                        onChange={(_, value) =>
-                          updateExperience(exp.id, "dates", value)
-                        }
-                      />
-                      <FormField
-                        label="Description"
-                        name=""
-                        value={exp.description}
-                        onChange={(_, value) =>
-                          updateExperience(exp.id, "description", value)
-                        }
-                        type="textarea"
-                      />
-                      <Button variant="gradient" className="mt-2 w-full">
-                        ✨ Smartfill (AI)
-                      </Button>
-                    </SectionCard>
-                  );
-                })}
-              </div>
-              <Button
-                variant="secondary"
-                className="mt-3 w-full"
-                onClick={addExperience}
-              >
-                + Add Experience
-              </Button>
-            </section>
-
-            {/* Projects Section */}
-            <section id="projects">
-              <h2 className="mb-3 text-sm font-bold text-gray-900 md:mb-4 md:text-base">
-                Projects
-              </h2>
-              <div className="space-y-3 rounded-md bg-gray-50 p-3 md:p-4">
-                {resumeData.projects.map((proj, idx) => {
-                  const count = resumeData.projects.length;
-                  const pos = typeof proj.order === "number" ? proj.order : idx;
-                  const showControls = count > 1;
-                  return (
-                    <SectionCard
-                      key={proj.id}
-                      title={proj.projectName || "New Project"}
-                      showControls={showControls}
-                      onDelete={() => deleteProject(proj.id)}
-                      onMoveUp={() => moveItemIn("projects", proj.id, "up")}
-                      onMoveDown={() => moveItemIn("projects", proj.id, "down")}
-                      disableMoveUp={pos === 0}
-                      disableMoveDown={pos === count - 1}
-                    >
-                      <FormField
-                        label="Project Name"
-                        name="projectName"
-                        value={proj.projectName}
-                        onChange={(_, value) =>
-                          updateProject(proj.id, "projectName", value)
-                        }
-                      />
-                      <FormField
-                        label="Technologies"
-                        name="technologies"
-                        value={proj.technologies}
-                        onChange={(_, value) =>
-                          updateProject(proj.id, "technologies", value)
-                        }
-                      />
-                      <FormField
-                        label="Date"
-                        name="date"
-                        value={proj.date}
-                        onChange={(_, value) =>
-                          updateProject(proj.id, "date", value)
-                        }
-                      />
-                      <FormField
-                        label="Description (Bullet Points)"
-                        name="description"
-                        value={proj.description}
-                        onChange={(_, value) =>
-                          updateProject(proj.id, "description", value)
-                        }
-                        type="textarea"
-                      />
-                    </SectionCard>
-                  );
-                })}
-              </div>
-              <Button
-                variant="secondary"
-                className="mt-3 w-full"
-                onClick={addProject}
-              >
-                + Add Project
-              </Button>
-            </section>
-
-            {/* Technical Skills Section */}
-            <section id="technical-skills">
-              <h2 className="mb-3 text-sm font-bold text-gray-900 md:mb-4 md:text-base">
-                Technical Skills
-              </h2>
-              <div className="space-y-3">
-                <FormField
-                  label="Languages"
-                  name="languages"
-                  value={resumeData.technicalSkills.languages}
-                  onChange={(_, value) =>
-                    setResumeData((prev) => ({
-                      ...prev,
-                      technicalSkills: {
-                        ...prev.technicalSkills,
-                        languages: value,
-                      },
-                    }))
-                  }
-                />
-                <FormField
-                  label="Developer Tools"
-                  name="developerTools"
-                  value={resumeData.technicalSkills.developerTools}
-                  onChange={(_, value) =>
-                    setResumeData((prev) => ({
-                      ...prev,
-                      technicalSkills: {
-                        ...prev.technicalSkills,
-                        developerTools: value,
-                      },
-                    }))
-                  }
-                />
-                <FormField
-                  label="Technologies/Frameworks"
-                  name="technologiesFrameworks"
-                  value={resumeData.technicalSkills.technologiesFrameworks}
-                  onChange={(_, value) =>
-                    setResumeData((prev) => ({
-                      ...prev,
-                      technicalSkills: {
-                        ...prev.technicalSkills,
-                        technologiesFrameworks: value,
-                      },
-                    }))
-                  }
-                />
-              </div>
-            </section>
-
-            {/* Leadership Section */}
-            <section id="leadership">
-              <h2 className="mb-3 text-sm font-bold text-gray-900 md:mb-4 md:text-base">
-                Leadership / Extracurricular
-              </h2>
-              <div className="space-y-3 rounded-md bg-gray-50 p-3 md:p-4">
-                {resumeData.leadership.map((lead, idx) => {
-                  const count = resumeData.leadership.length;
-                  const pos = typeof lead.order === "number" ? lead.order : idx;
-                  const showControls = count > 1;
-                  return (
-                    <SectionCard
-                      key={lead.id}
-                      title={`${lead.role || "New Role"}${lead.organization ? `, ${lead.organization}` : ""}`}
-                      showControls={showControls}
-                      onDelete={() => deleteLeadership(lead.id)}
-                      onMoveUp={() => moveItemIn("leadership", lead.id, "up")}
-                      onMoveDown={() =>
-                        moveItemIn("leadership", lead.id, "down")
+                    />
+                    <FormField
+                      label="Developer Tools"
+                      name="developerTools"
+                      value={resumeData.technicalSkills.developerTools}
+                      onChange={(_, value) =>
+                        setResumeData((prev) => ({
+                          ...prev,
+                          technicalSkills: {
+                            ...prev.technicalSkills,
+                            developerTools: value,
+                          },
+                        }))
                       }
-                      disableMoveUp={pos === 0}
-                      disableMoveDown={pos === count - 1}
-                    >
-                      <FormField
-                        label="Role"
-                        name="role"
-                        value={lead.role}
-                        onChange={(_, value) =>
-                          updateLeadership(lead.id, "role", value)
-                        }
-                      />
-                      <FormField
-                        label="Organization"
-                        name="organization"
-                        value={lead.organization}
-                        onChange={(_, value) =>
-                          updateLeadership(lead.id, "organization", value)
-                        }
-                      />
-                      <FormField
-                        label="Dates"
-                        name="dates"
-                        value={lead.dates}
-                        onChange={(_, value) =>
-                          updateLeadership(lead.id, "dates", value)
-                        }
-                      />
-                      <FormField
-                        label="Description"
-                        name="description"
-                        value={lead.description}
-                        onChange={(_, value) =>
-                          updateLeadership(lead.id, "description", value)
-                        }
-                        type="textarea"
-                      />
-                    </SectionCard>
-                  );
-                })}
-              </div>
-              <Button
-                variant="secondary"
-                className="mt-3 w-full"
-                onClick={addLeadership}
-              >
-                + Add Leadership/Extracurricular
-              </Button>
-            </section>
+                    />
+                    <FormField
+                      label="Technologies/Frameworks"
+                      name="technologiesFrameworks"
+                      value={resumeData.technicalSkills.technologiesFrameworks}
+                      onChange={(_, value) =>
+                        setResumeData((prev) => ({
+                          ...prev,
+                          technicalSkills: {
+                            ...prev.technicalSkills,
+                            technologiesFrameworks: value,
+                          },
+                        }))
+                      }
+                    />
+                  </div>
+                </section>
 
-            <Button
-              variant="primary"
-              className="mt-3 w-full"
-              onClick={previewPdf}
-            >
-              Next to Download
-            </Button>
+                {/* Leadership Section */}
+                <section id="leadership">
+                  <h2 className="mb-3 text-sm font-bold text-gray-900 md:mb-4 md:text-base">
+                    Leadership / Extracurricular
+                  </h2>
+                  <div className="space-y-3 rounded-md bg-gray-50 p-3 md:p-4">
+                    {resumeData.leadership.map((lead, idx) => {
+                      const count = resumeData.leadership.length;
+                      const pos =
+                        typeof lead.order === "number" ? lead.order : idx;
+                      const showControls = count > 1;
+                      return (
+                        <SectionCard
+                          key={lead.id}
+                          title={`${lead.role || "New Role"}${lead.organization ? `, ${lead.organization}` : ""}`}
+                          showControls={showControls}
+                          onDelete={() => deleteLeadership(lead.id)}
+                          onMoveUp={() =>
+                            moveItemIn("leadership", lead.id, "up")
+                          }
+                          onMoveDown={() =>
+                            moveItemIn("leadership", lead.id, "down")
+                          }
+                          disableMoveUp={pos === 0}
+                          disableMoveDown={pos === count - 1}
+                        >
+                          <FormField
+                            label="Role"
+                            name="role"
+                            value={lead.role}
+                            onChange={(_, value) =>
+                              updateLeadership(lead.id, "role", value)
+                            }
+                          />
+                          <FormField
+                            label="Organization"
+                            name="organization"
+                            value={lead.organization}
+                            onChange={(_, value) =>
+                              updateLeadership(lead.id, "organization", value)
+                            }
+                          />
+                          <FormField
+                            label="Dates"
+                            name="dates"
+                            value={lead.dates}
+                            onChange={(_, value) =>
+                              updateLeadership(lead.id, "dates", value)
+                            }
+                          />
+                          <FormField
+                            label="Description"
+                            name="description"
+                            value={lead.description}
+                            onChange={(_, value) =>
+                              updateLeadership(lead.id, "description", value)
+                            }
+                            type="textarea"
+                          />
+                        </SectionCard>
+                      );
+                    })}
+                  </div>
+                  <Button
+                    variant="secondary"
+                    className="mt-3 w-full"
+                    onClick={addLeadership}
+                  >
+                    + Add Leadership/Extracurricular
+                  </Button>
+                </section>
+              </>
+            ) : (
+              // LaTeX editor mode
+              <div className="flex h-full flex-col">
+                <h2 className="mb-3 text-sm font-bold text-gray-900 md:mb-4 md:text-base">
+                  LaTeX Editor
+                </h2>
+                <div className="flex-1">
+                  <textarea
+                    className="h-full w-full rounded-md border border-gray-300 bg-white p-4 font-mono text-sm"
+                    value={latex}
+                    onChange={(e) => setLatex(e.target.value)}
+                    placeholder="Edit your LaTeX code here..."
+                    spellCheck={false}
+                  />
+                </div>
+                {compileError && (
+                  <div className="mt-3 rounded-md border border-red-200 bg-red-50 p-3">
+                    <p className="text-sm text-red-800">{compileError}</p>
+                  </div>
+                )}
+              </div>
+            )}
+            <div>
+              <Button
+                variant="primary"
+                className="flex w-full items-center justify-center"
+                onClick={() => void downloadPdf()}
+                disabled={loading || isPdfGenerating}
+              >
+                <DownloadIcon className="mr-1 h-4 w-4" />
+                {isPdfGenerating
+                  ? "Generating PDF..."
+                  : loading
+                    ? "Generating..."
+                    : "Download PDF"}
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -698,40 +878,56 @@ export default function ContentBuilderPage() {
         <div className="hidden h-full w-[720px] overflow-auto bg-white lg:block lg:h-full">
           <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-gray-50 px-5 py-4">
             <h3 className="text-sm font-bold text-gray-800">Live Preview</h3>
-            <Button variant="outline" size="sm" className="flex">
-              <DownloadIcon className="mr-1 h-4 w-4" />
-            </Button>
           </div>
 
-          <div className="flex-1 overflow-auto p-6">
-            <div className="mx-auto max-w-2xl rounded border border-gray-200 bg-white p-10 shadow-sm">
-              {/* Resume Preview Content */}
-              <div className="border-b-2 border-indigo-500 pb-5">
-                <h1 className="text-center text-2xl font-bold text-indigo-500">
-                  FIRST LAST
-                </h1>
-                <p className="mt-1 text-center text-xs text-gray-600">
-                  123 Street Name, Town, State 12345 | 123-456-7890 |
-                  email@gmail.com |{" "}
-                  <a href="#" className="text-blue-600 underline">
-                    linkedin.com/in/username
-                  </a>{" "}
-                  |{" "}
-                  <a href="#" className="text-blue-600 underline">
-                    github.com/username
-                  </a>
-                </p>
-              </div>
-
-              {/* Rest of the preview would go here - simplified for brevity */}
-              <div className="mt-6 space-y-6 text-sm">
-                <div className="text-gray-500">
-                  <p className="text-center italic">
-                    Resume preview rendering...
-                  </p>
+          <div className="h-[calc(100vh-72px)] p-4">
+            {pdfPreviewURL ? (
+              <iframe
+                src={pdfPreviewURL}
+                className="h-full w-full border bg-white"
+                title="PDF Preview"
+                style={{
+                  maxWidth: "210mm",
+                  margin: "0 auto",
+                }}
+              />
+            ) : compileError ? (
+              <div className="flex h-full items-center justify-center">
+                <div className="max-w-2xl rounded-lg border border-red-200 bg-red-50 p-6">
+                  <h4 className="mb-3 text-lg font-bold text-red-900">
+                    ⚠️ Generation Error
+                  </h4>
+                  <p className="mb-4 text-sm text-red-800">{compileError}</p>
+                  <Button
+                    variant="secondary"
+                    className="mt-4"
+                    onClick={() => void compileLaTeX()}
+                  >
+                    Try Again
+                  </Button>
                 </div>
               </div>
-            </div>
+            ) : loading ? (
+              <div className="flex h-full items-center justify-center text-gray-500">
+                <div className="text-center">
+                  <div className="mb-2 text-lg">
+                    ⏳ Generating PDF preview...
+                  </div>
+                  <div className="text-xs">Converting LaTeX to PDF</div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex h-full items-center justify-center text-gray-500">
+                <div className="max-w-md text-center">
+                  <div className="mb-2">
+                    📄 Edit the form or LaTeX to generate a PDF preview.
+                  </div>
+                  <div className="text-xs">
+                    Direct LaTeX to PDF conversion with LaTeX support.
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

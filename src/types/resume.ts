@@ -42,7 +42,17 @@ export interface TechnicalSkills {
   technologiesFrameworks: string;
 }
 
+export interface PersonalInfo {
+  name: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  linkedin?: string;
+  github?: string;
+}
+
 export interface ResumeData {
+  personalInfo?: PersonalInfo;
   education: Education[];
   experience: Experience[];
   projects: Project[];
