@@ -1,9 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useAuth } from "../hooks/useAuth";
 
 export default function Home() {
+  const { isSignedIn, signOut, loaded } = useAuth();
+  const router = useRouter();
+
+  const [menuOpen, setMenuOpen] = useState(false);
   const [mode, setMode] = useState<"job" | "manual">("job");
   const [jobDescription, setJobDescription] = useState("");
   const [suggestions, setSuggestions] = useState("");
@@ -14,6 +20,22 @@ export default function Home() {
     skills: [""],
     summary: [""],
   });
+
+  // redirect only after auth status is loaded
+  useEffect(() => {
+    if (loaded && !isSignedIn) {
+      router.push("/signin-required");
+    }
+  }, [isSignedIn, loaded, router]);
+
+  // guard against premature render
+  if (!loaded) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <p className="text-lg text-gray-600">Loading...</p>
+      </div>
+    );
+  }
 
   const handleAdd = (field: keyof typeof resumeData) => {
     setResumeData({ ...resumeData, [field]: [...resumeData[field], ""] });
@@ -49,21 +71,39 @@ export default function Home() {
   return (
     <div className="flex min-h-screen flex-col bg-gray-50 text-gray-900">
       {/* ─── Header ───────────────────────────────────────────── */}
-      <header className="flex items-center justify-between bg-white px-8 py-4 shadow-sm">
+      <header className="relative flex items-center justify-between bg-white px-8 py-4 shadow-sm">
         <h1 className="text-2xl font-bold text-blue-700">Resume Advisor</h1>
-        <div className="flex gap-4">
-          <Link
-            href="/login"
-            className="text-sm font-medium text-blue-600 hover:underline"
+
+        {/* Profile Menu */}
+        <div className="relative">
+          <button
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700"
           >
-            Sign In
-          </Link>
-          <Link
-            href="/signup"
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-blue-700"
-          >
-            Sign Up
-          </Link>
+            Profile ▾
+          </button>
+          {menuOpen && (
+            <div className="absolute right-0 mt-2 w-40 rounded-lg border bg-white shadow-md">
+              <Link
+                href="/profile"
+                className="block px-4 py-2 hover:bg-gray-100"
+              >
+                View Profile
+              </Link>
+              <Link
+                href="/settings"
+                className="block px-4 py-2 hover:bg-gray-100"
+              >
+                Settings
+              </Link>
+              <button
+                onClick={signOut}
+                className="w-full px-4 py-2 text-left text-red-600 hover:bg-gray-100"
+              >
+                Logout
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
@@ -154,7 +194,6 @@ export default function Home() {
                   </div>
                 );
               })}
-
               <button
                 type="submit"
                 className="self-center rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white transition-all hover:bg-blue-700"
@@ -164,7 +203,7 @@ export default function Home() {
             </form>
           )}
 
-          {/* Suggestions */}
+          {/* AI Suggestions Output */}
           {suggestions && (
             <div className="mt-8">
               <h2 className="mb-2 text-xl font-semibold">AI Suggestions</h2>
