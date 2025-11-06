@@ -1,5 +1,7 @@
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useKeywordsStore } from "@/stores/useKeywordsStore";
+import { Keyword } from "@/types/keywords";
 
 interface UseJobDescriptionReturn {
   jobDescription: string;
@@ -47,10 +49,18 @@ export const useJobDescription = (): UseJobDescriptionReturn => {
         throw new Error("Failed to analyze job description");
       }
 
-      const data = await response.json();
-      console.log("Analysis result:", data);
+      const data = await JSON.parse(await response.text())?.data;
 
-      // TODO: Navigate to next step or handle the response
+      // Update Zustand store with the fetched keywords data
+      useKeywordsStore.getState().setJobId(data.jobId);
+      useKeywordsStore.getState().setKeywordsData([
+        ...data?.keywords.map((keyword: Keyword) => ({
+          ...keyword,
+          selected: false,
+        })),
+      ]);
+
+      router.push("/keywords-selection");
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "An unknown error occurred",
