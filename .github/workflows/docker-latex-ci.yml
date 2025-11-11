@@ -11,6 +11,9 @@ jobs:
     # Only run for the original repository, not forks
     if: github.repository == 'dastine0308/Resume-Advisor-Next'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
 
