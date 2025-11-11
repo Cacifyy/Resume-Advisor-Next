@@ -6,7 +6,7 @@ const path = require("path");
 const crypto = require("crypto");
 
 const app = express();
-const PORT = process.env.PORT || 3002;
+const PORT = process.env.PORT || 80;
 const TEMP_DIR = "/tmp/latex-compile";
 
 // Middleware

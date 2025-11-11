@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const LATEX_SERVICE_URL =
-  process.env.LATEX_SERVICE_URL || "http://localhost:3002";
+  process.env.LATEX_SERVICE_URL || "http://localhost:80";
 
 /**
  * Server-side LaTeX compilation API

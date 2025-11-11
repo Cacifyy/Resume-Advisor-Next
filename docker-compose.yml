@@ -9,7 +9,7 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - LATEX_SERVICE_URL=http://latex-service:3002
+      - LATEX_SERVICE_URL=http://latex-service:80
     depends_on:
       - latex-service
     restart: unless-stopped
@@ -21,10 +21,10 @@ services:
       context: .
       dockerfile: Dockerfile.latex
     ports:
-      - "3002:3002"
+      - "80:80"
     environment:
       - NODE_ENV=production
-      - PORT=3002
+      - PORT=80
     restart: unless-stopped
     networks:
       - resume-advisor-network
