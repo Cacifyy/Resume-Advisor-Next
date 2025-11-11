@@ -43,4 +43,3 @@ next-env.d.ts
 
 # docker
 latex-service/node_modules
-latex-service/package-lock.json
