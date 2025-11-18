@@ -1,13 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
 
 export default function SignUpPage() {
   const router = useRouter();
   const [form, setForm] = useState({ email: "", password: "", confirmPassword: "" });
   const [error, setError] = useState("");
+  const formRef = useRef<HTMLFormElement | null>(null);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -22,98 +25,88 @@ export default function SignUpPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12">
-      <div className="w-full max-w-md rounded-xl bg-white p-8 shadow-md">
-        {/* Header */}
-        <div className="mb-6 text-center">
-          <h1 className="text-2xl font-bold text-blue-600 md:text-3xl"> 
-            Sign Up
-          </h1>
-          <p className="mt-2 text-gray-600">
-            Create your account to get AI-powered resume help
+    <div className="min-h-screen bg-gray-50">
+      <div className="mx-auto max-w-md px-4 py-6">
+        <div className="rounded-xl bg-white p-6 shadow-md">
+          {/* Header */}
+          <div className="mb-4 text-center">
+            <h1 className="text-2xl font-bold text-indigo-600">Sign Up</h1>
+            <p className="mt-1 text-sm text-gray-600">Create your account to get AI-powered resume help</p>
+          </div>
+
+          {/* Step Indicator (compact mobile) */}
+          <div className="mb-6 flex items-center justify-center gap-3">
+            <div className="h-2 w-8 rounded-full bg-indigo-600" />
+            <div className="h-2 w-8 rounded-full bg-gray-300" />
+          </div>
+
+          {/* Form */}
+          <form ref={(el) => { formRef.current = el; }} onSubmit={handleSubmit} className="space-y-4">
+            <Input
+              label="Email"
+              name="email"
+              type="email"
+              value={form.email}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, email: e.target.value })}
+              placeholder="you@example.com"
+              required
+            />
+
+            <Input
+              label="Password"
+              name="password"
+              type="password"
+              value={form.password}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, password: e.target.value })}
+              placeholder="Create a password"
+              required
+            />
+
+            <Input
+              label="Confirm Password"
+              name="confirmPassword"
+              type="password"
+              value={form.confirmPassword}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, confirmPassword: e.target.value })}
+              placeholder="Confirm password"
+              required
+            />
+
+            <div className="hidden sm:flex">
+              <Button type="submit" variant="gradient" className="w-full py-2">Continue</Button>
+            </div>
+          </form>
+
+          {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+
+          <p className="mt-6 text-center text-sm text-gray-500">
+            Already have an account?{' '}
+            <Link href="/login" className="font-medium text-indigo-600 hover:underline">
+              Log in
+            </Link>
           </p>
         </div>
+      </div>
 
-        {/* Step Indicator */}
-        <div className="mb-8 flex items-center justify-center space-x-4">
-          <div className="flex flex-col items-center">
-            <span className="text-sm font-medium text-blue-600">Sign Up</span>
-            <div className="mt-1 h-1.5 w-12 rounded-full bg-blue-600" />
-          </div>
-          <div className="h-0.5 w-10 bg-gray-300" />
-          <div className="flex flex-col items-center">
-            <span className="text-sm font-medium text-gray-400">Profile Setup</span>
-            <div className="mt-1 h-1.5 w-12 rounded-full bg-gray-300" />
+      {/* Mobile sticky CTA */}
+      <div className="sm:hidden fixed inset-x-0 bottom-0 z-50 bg-white p-4 border-t border-gray-200">
+        <div className="mx-auto max-w-md">
+          <div className="flex gap-3">
+            <button
+              onClick={() => router.back()}
+              className="rounded-md border border-gray-300 px-4 py-2 text-sm"
+            >
+              Back
+            </button>
+            <button
+              onClick={() => formRef.current?.requestSubmit()}
+              style={{ background: "linear-gradient(to right, #ec4899, #7c3aed)" }}
+              className="flex-1 rounded-md py-3 text-sm font-semibold text-white shadow-sm"
+            >
+              Continue
+            </button>
           </div>
         </div>
-
-  {/* Form */}
-  <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Email */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700" htmlFor="email">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              placeholder="you@example.com"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:ring-indigo-500"
-              required
-            />
-          </div>
-
-          {/* Password */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700" htmlFor="password">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              placeholder="********"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:ring-indigo-500"
-              required
-            />
-          </div>
-
-          {/* Confirm Password */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700" htmlFor="confirmPassword">
-              Confirm Password
-            </label>
-            <input
-              id="confirmPassword"
-              type="password"
-              placeholder="********"
-              value={form.confirmPassword}
-              onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
-              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:ring-indigo-500"
-              required
-            />
-          </div>
-
-          {/* Submit */}
-          <button
-            type="submit"
-            className="w-full rounded-md bg-gradient-to-r from-pink-500 to-indigo-500 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
-          >
-            Continue to profile setup
-          </button>
-          {error && <p className="text-sm text-red-600">{error}</p>}
-        </form>
-
-        {/* Footer */}
-        <p className="mt-6 text-center text-sm text-gray-500">
-          Already have an account?{" "}
-          <Link href="/login" className="font-medium text-indigo-600 hover:underline">
-            Log in
-          </Link>
-        </p>
       </div>
     </div>
   );

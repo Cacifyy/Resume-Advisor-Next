@@ -107,6 +107,26 @@ export default function DashboardPage() {
           </p>
         </div>
 
+        {/* Mobile stats row (horizontal scroll) */}
+        <div className="mb-6 block w-full md:hidden">
+          <div className="-mx-4 overflow-x-auto px-4">
+            <div className="flex w-max gap-3">
+              <div className="min-w-[180px] rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                <p className="text-xs text-gray-500">Total Resumes</p>
+                <p className="mt-2 text-2xl font-bold text-gray-900">{mockData.totalResumes}</p>
+              </div>
+              <div className="min-w-[180px] rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                <p className="text-xs text-gray-500">Cover Letters</p>
+                <p className="mt-2 text-2xl font-bold text-gray-900">{mockData.coverLetters}</p>
+              </div>
+              <div className="min-w-[180px] rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                <p className="text-xs text-gray-500">Saved Jobs</p>
+                <p className="mt-2 text-2xl font-bold text-gray-900">{mockData.savedJobPostings}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Stats Grid */}
         <div className="mb-6 grid grid-cols-1 gap-5 md:mb-8 md:grid-cols-3">
           <DashboardCard
@@ -134,6 +154,17 @@ export default function DashboardPage() {
           >
             + Create New Resume
           </Button>
+        </div>
+
+        {/* Mobile floating action button */}
+        <div className="md:hidden">
+          <button
+            onClick={() => router.push("/content-builder/new")}
+            aria-label="Create new"
+            className="fixed bottom-6 right-4 z-50 inline-flex items-center justify-center rounded-full bg-indigo-500 p-4 text-white shadow-lg"
+          >
+            +
+          </button>
         </div>
 
         {/* Document Tabs & Grid */}

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { Input } from "@/components/ui/Input";
@@ -21,6 +21,8 @@ export default function AccountCreationPage() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
+
+  const formRef = useRef<HTMLFormElement | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,7 +58,7 @@ export default function AccountCreationPage() {
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
+            <form ref={(el) => { formRef.current = el; }} onSubmit={handleSubmit} className="space-y-4">
             <Input
               label="Full name"
               name="name"
@@ -98,8 +100,8 @@ export default function AccountCreationPage() {
               placeholder="https://github.com/username"
             />
 
-            {/* Buttons */}
-            <div className="flex items-center justify-between gap-4 pt-2">
+            {/* Buttons (hidden on small screens; mobile CTA is sticky) */}
+            <div className="hidden sm:flex items-center justify-between gap-4 pt-2">
               <Button
                 variant="outline"
                 className="py-2"
@@ -107,13 +109,36 @@ export default function AccountCreationPage() {
               >
                 Back
               </Button>
-                <button
-                    type="submit"
-                    className="flex-1 rounded-md !bg-gradient-to-r !from-blue-500 !to-blue-600 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
-                >
+              <button
+                type="submit"
+                style={{
+                  background: "linear-gradient(to right, #3B82F6, #2563EB)",
+                }}
+                className="flex-1 rounded-md py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+              >
                 Done
-                </button>
+              </button>
             </div>
+        {/* Mobile sticky CTA */}
+        <div className="sm:hidden fixed inset-x-0 bottom-0 z-50 bg-white p-4 border-t border-gray-200">
+          <div className="mx-auto max-w-md">
+            <div className="flex gap-3">
+              <button
+                onClick={() => router.push("/signup")}
+                className="rounded-md border border-gray-300 px-4 py-2 text-sm"
+              >
+                Back
+              </button>
+              <button
+                onClick={() => formRef.current?.requestSubmit()}
+                style={{ background: "linear-gradient(to right, #3B82F6, #2563EB)" }}
+                className="flex-1 rounded-md py-3 text-sm font-semibold text-white shadow-sm"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
           </form>
         </div>
       </div>

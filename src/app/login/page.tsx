@@ -1,9 +1,11 @@
 "use client";
 
-import { useAuth } from "../../hooks/useAuth";
+import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
+import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
 
 export default function LoginPage() {
   const { signIn } = useAuth();
@@ -12,6 +14,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const formRef = useRef<HTMLFormElement | null>(null);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,79 +31,74 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12">
-      <div className="w-full max-w-md rounded-xl bg-white p-8 shadow-md">
-        {/* Header */}
-        <div className="mb-6 text-center">
-          <h1 className="text-2xl font-bold text-blue-600 md:text-3xl">
-            Log In
-          </h1>
-          <p className="mt-2 text-gray-600">Welcome back to Resume Advisor</p>
-        </div>
+    <div className="min-h-screen bg-gray-50">
+      <div className="mx-auto max-w-md px-4 py-6">
+        <div className="rounded-xl bg-white p-6 shadow-md">
+          {/* Header */}
+          <div className="mb-4 text-center">
+            <h1 className="text-2xl font-bold text-indigo-600">Log In</h1>
+            <p className="mt-1 text-sm text-gray-600">Welcome back to Resume Advisor</p>
+          </div>
 
-        {/* Form */}
-        <form onSubmit={handleLogin} className="space-y-5">
-          {/* Email */}
-          <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Email
-            </label>
-            <input
+          {/* Form */}
+          <form ref={(el) => { formRef.current = el; }} onSubmit={handleLogin} className="space-y-4">
+            <Input
+              label="Email"
+              name="email"
               type="email"
-              id="email"
-              placeholder="you@example.com"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:ring-indigo-500"
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
+              placeholder="you@example.com"
               required
             />
-          </div>
 
-          {/* Password */}
-          <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Password
-            </label>
-            <input
+            <Input
+              label="Password"
+              name="password"
               type="password"
-              id="password"
-              placeholder="********"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:ring-indigo-500"
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+              placeholder="********"
               required
             />
+
+            {error && (
+              <p className="text-sm text-red-600">{error}</p>
+            )}
+
+            <div className="hidden sm:block">
+              <Button type="submit" variant="gradient" className="w-full py-2">Sign In</Button>
+            </div>
+          </form>
+
+          <p className="mt-6 text-center text-sm text-gray-500">
+            Don’t have an account?{' '}
+            <Link href="/signup" className="font-medium text-indigo-600 hover:underline">
+              Sign up
+            </Link>
+          </p>
+        </div>
+      </div>
+
+      {/* Mobile sticky CTA */}
+      <div className="sm:hidden fixed inset-x-0 bottom-0 z-50 bg-white p-4 border-t border-gray-200">
+        <div className="mx-auto max-w-md">
+          <div className="flex gap-3">
+            <button
+              onClick={() => router.back()}
+              className="rounded-md border border-gray-300 px-4 py-2 text-sm"
+            >
+              Back
+            </button>
+            <button
+              onClick={() => formRef.current?.requestSubmit()}
+              style={{ background: "linear-gradient(to right, #ec4899, #7c3aed)" }}
+              className="flex-1 rounded-md py-3 text-sm font-semibold text-white shadow-sm"
+            >
+              Sign In
+            </button>
           </div>
-
-          {error && (
-            <p className="text-sm text-red-600">{error}</p>
-          )}
-
-          {/* Submit */}
-          <button
-            type="submit"
-            className="w-full rounded-md bg-gradient-to-r from-pink-500 to-indigo-500 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
-          >
-            Sign In
-          </button>
-        </form>
-
-        {/* Footer */}
-        <p className="mt-6 text-center text-sm text-gray-500">
-          Don’t have an account?{" "}
-          <Link
-            href="/signup"
-            className="font-medium text-indigo-600 hover:underline"
-          >
-            Sign up
-          </Link>
-        </p>
+        </div>
       </div>
     </div>
   );
