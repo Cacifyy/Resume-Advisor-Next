@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
-import { Button } from "@/components/ui/Button";
+import React, { useMemo, useState, useEffect } from "react";
+import { Button, Dropdown, } from "@/components/ui"
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { useRouter } from "next/navigation";
+import { Label } from "@/components/ui/Label";
+import { getUserResumes } from "@/lib/api-services";
 
 export default function CoverLetterPage() {
   const router = useRouter();
@@ -12,28 +14,58 @@ export default function CoverLetterPage() {
   const [company, setCompany] = useState("");
   const [position, setPosition] = useState("");
   const [tone, setTone] = useState("Professional");
-  const [intro, setIntro] = useState("");
-  const [body, setBody] = useState("");
+  const [resumeTitle, setResumeTitle] = useState("");
+  const [prompt, setPrompt] = useState("");
   const [closing, setClosing] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [resumeList, setResumeList] = useState<{ id: string; jobId: number; title: string; modifiedDate: string }[]>([]);
+  const toneList = [
+    { tone: "Professional" },
+    { tone: "Friendly" },
+    { tone: "Concise" },
+  ]
 
+  const canGenerate = resumeTitle.trim() !== "" && prompt.trim() !== "";
+
+  useEffect(() => {
+    async function fetchResumes() {
+      try {
+        const response = await getUserResumes();
+        const list = response?.length
+          ? response.map((resume:{
+              id: string;
+              job_id: number;
+              last_updated: string;
+              title: string;
+            }) => ({
+              id: resume.id,
+              jobId: resume.job_id,
+              title: resume.title || "Untitled Resume",
+              modifiedDate: resume.last_updated,
+            }))
+          : [];
+        setResumeList(list);
+      } catch (error) {
+        console.error("Failed to fetch resumes:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchResumes();
+  }, []);
+
+
+// change with LLM API
   const composed = useMemo(() => {
-    return `Dear ${recipient || "Hiring Manager"},\n\n${intro}\n\n${body}\n\nSincerely,\n${closing || "Your Name"}`;
-  }, [recipient, intro, body, closing]);
-
+    return `Dear ${recipient || "Hiring Manager"},\n\n${prompt}\n\nSincerely,\n${closing || "Your Name"}`;
+  }, [recipient, closing]);
+  
   const handleGenerate = async () => {
     setIsLoading(true);
     try {
       // Placeholder: in future call AI API to generate text
       await new Promise((res) => setTimeout(res, 700));
-      if (!intro)
-        setIntro(
-          `I am excited to apply for the ${position || "role"} at ${company || "your company"}.`,
-        );
-      if (!body)
-        setBody(
-          "I bring relevant experience and a strong passion for solving problems. I would welcome the chance to contribute to your team.",
-        );
       if (!closing) setClosing("First Last");
     } finally {
       setIsLoading(false);
@@ -61,9 +93,9 @@ export default function CoverLetterPage() {
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div>
-                        <label className="text-sm font-medium text-gray-700">
+                        <Label>
                           Recipient
-                        </label>
+                        </Label>
                         <Input
                           value={recipient}
                           onChange={(e) => setRecipient(e.target.value)}
@@ -72,9 +104,9 @@ export default function CoverLetterPage() {
                         />
                       </div>
                       <div>
-                        <label className="text-sm font-medium text-gray-700">
+                        <Label>
                           Company
-                        </label>
+                        </Label>
                         <Input
                           value={company}
                           onChange={(e) => setCompany(e.target.value)}
@@ -84,11 +116,11 @@ export default function CoverLetterPage() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-1">
                       <div>
-                        <label className="text-sm font-medium text-gray-700">
+                        <Label>
                           Position
-                        </label>
+                        </Label>
                         <Input
                           value={position}
                           onChange={(e) => setPosition(e.target.value)}
@@ -96,52 +128,60 @@ export default function CoverLetterPage() {
                           aria-label="Position"
                         />
                       </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-700">
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div className="flex flex-col">
+                        <Label>
                           Tone
-                        </label>
-                        <select
-                          value={tone}
-                          onChange={(e) => setTone(e.target.value)}
-                          className="mt-1 block w-full rounded-md border-gray-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                        >
-                          <option>Professional</option>
-                          <option>Friendly</option>
-                          <option>Concise</option>
-                        </select>
+                        </Label>
+                        <Dropdown
+                          trigger={
+                            <Button variant="outline" className="w-full">
+                              {tone || "Select"}
+                            </Button>
+                          }
+                          items={toneList.map((r) => ({
+                            label: r.tone,
+                            value: r.tone,
+                            onClick: () => setTone(r.tone),
+                          }))}
+                        />
+                      </div>
+                      <div className="flex flex-col">
+                        <Label>Resume</Label>
+                        <Dropdown
+                          trigger={
+                            <Button variant="outline" className="w-full">
+                              {resumeTitle || "Select a Resume"}
+                            </Button>
+                          }
+                          items={resumeList.map((r) => ({
+                            label: r.title,
+                            value: r.title,
+                            onClick: () => setResumeTitle(r.title),
+                          }))}
+                        />
                       </div>
                     </div>
-
+                   
                     <div>
-                      <label className="text-sm font-medium text-gray-700">
-                        Introduction
-                      </label>
+                      <Label>
+                        Descriptive Prompt
+                      </Label>
                       <Textarea
-                        value={intro}
-                        onChange={(e) => setIntro(e.target.value)}
-                        placeholder="Start with a strong opening sentence..."
-                        aria-label="Introduction"
-                        className="min-h-[90px]"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">
-                        Body
-                      </label>
-                      <Textarea
-                        value={body}
-                        onChange={(e) => setBody(e.target.value)}
-                        placeholder="Describe your fit, achievements and motivation..."
-                        aria-label="Body"
+                        value={prompt}
+                        onChange={(e) => setPrompt(e.target.value)}
+                        placeholder="Add any descriptors you would like to note before generation..."
+                        aria-label="Prompt"
                         className="min-h-[140px]"
                       />
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium text-gray-700">
+                      <Label>
                         Closing / Signature
-                      </label>
+                      </Label>
                       <Input
                         value={closing}
                         onChange={(e) => setClosing(e.target.value)}
@@ -157,8 +197,7 @@ export default function CoverLetterPage() {
                           setRecipient("");
                           setCompany("");
                           setPosition("");
-                          setIntro("");
-                          setBody("");
+                          setPrompt("");
                           setClosing("");
                           router.push("/");
                         }}
@@ -170,7 +209,7 @@ export default function CoverLetterPage() {
                         variant="primary"
                         onClick={handleGenerate}
                         className="w-full sm:w-auto"
-                        disabled={isLoading}
+                        disabled={isLoading || !canGenerate}
                       >
                         {isLoading ? "Generating..." : "Generate with AI"}
                       </Button>
