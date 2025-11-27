@@ -28,6 +28,23 @@ interface ResumeStore {
   isPdfGenerating: boolean;
   setIsPdfGenerating: (v: boolean) => void;
 
+  // Captured job posting draft (parsed from job description JSON if provided)
+  jobPostingDraft?: {
+    close_date?: string;
+    company_industry?: string;
+    company_location?: string;
+    company_name?: string;
+    company_website?: string;
+    description?: string;
+    job_location?: string;
+    posted_date?: string;
+    requirements?: unknown[];
+    title?: string;
+  } | null;
+  setJobPostingDraft: (
+    d: ResumeStore["jobPostingDraft"]
+  ) => void;
+
   // Reset the store to initial state
   resetStore: () => void;
 }
@@ -125,6 +142,9 @@ export const useResumeStore = create<ResumeStore>((set) => ({
 
   isPdfGenerating: false,
   setIsPdfGenerating: (v) => set({ isPdfGenerating: v }),
+
+  jobPostingDraft: null,
+  setJobPostingDraft: (d) => set({ jobPostingDraft: d ?? null }),
   resetStore: () =>
     set({
       resumeId: "",
@@ -195,6 +215,7 @@ export const useResumeStore = create<ResumeStore>((set) => ({
       pdfPreviewURL: null,
       compileError: null,
       isPdfGenerating: false,
+      jobPostingDraft: null,
     }),
 }));
 

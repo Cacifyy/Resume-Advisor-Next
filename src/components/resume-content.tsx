@@ -8,6 +8,7 @@ import { generateLatexFromData } from "@/lib/latex-generator";
 import { ResumeData } from "@/types/resume";
 import ContentBuilderForm from "@/components/form/content-builder-form";
 import JobAnalysisForm from "@/components/form/job-description-form";
+import { createJobPosting } from "@/lib/api-services";
 
 interface ResumeContentProps {
   resumeId?: string | null;
@@ -58,11 +59,41 @@ export function ResumeContent({
     setCurrentStep(currentStep - 1);
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentStep === 2) {
       downloadPdf();
       return;
     }
+
+    // When advancing from Job Description Analysis to Content Builder,
+    // trigger job posting creation with available data.
+    if (currentStep === 1) {
+      try {
+        const store = useResumeStore.getState();
+        const titleFromStore = store.resumeData?.personalInfo?.name?.trim();
+        const draft = store.jobPostingDraft || {};
+
+        // Build payload prioritizing parsed JSON draft; fallback to store title and defaults
+        const payload = {
+          title: draft.title?.trim() || titleFromStore || "Untitled",
+          company_name: draft.company_name?.trim() || "Unknown",
+          job_location: draft.job_location?.trim() || "Unknown",
+          close_date: draft.close_date,
+          company_industry: draft.company_industry,
+          company_location: draft.company_location,
+          company_website: draft.company_website,
+          description: draft.description,
+          posted_date: draft.posted_date,
+          requirements: draft.requirements,
+        };
+
+        await createJobPosting(payload);
+      } catch (e) {
+        // Non-blocking: proceed even if job posting fails
+        console.warn("Job posting creation failed:", e);
+      }
+    }
+
     setCurrentStep(currentStep + 1);
   };
 

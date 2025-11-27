@@ -173,3 +173,48 @@ export async function getResumeById(id: string): Promise<ResumeDataResponse> {
 export async function deleteResume(id: string): Promise<{ success: boolean }> {
   return api.delete<{ success: boolean }>(`/resumes/${id}`);
 }
+
+/**
+ * Job Posting API Services
+ */
+
+/*
+ * Post a job description for analysis
+ */
+export interface JobPostingPayload {
+  close_date?: string; // YYYY-MM-DD
+  company_industry?: string;
+  company_location?: string;
+  company_name: string;
+  company_website?: string;
+  description?: string;
+  job_location: string;
+  posted_date?: string; // YYYY-MM-DD
+  requirements?: string[];
+  title: string;
+}
+
+export interface JobPostingResponse {
+  job_id: number;
+  message: string;
+  success: boolean;
+}
+
+/**
+ * Create a job posting
+ */
+export async function createJobPosting(
+  payload: JobPostingPayload
+): Promise<JobPostingResponse> {
+  // Call the local Next.js route (not the external API client)
+  const res = await fetch("/api/job-postings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.message || `Failed to create job posting (${res.status})`);
+  }
+  return (await res.json()) as JobPostingResponse;
+}

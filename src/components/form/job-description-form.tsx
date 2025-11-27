@@ -138,7 +138,37 @@ export default function JobAnalysisForm() {
                 <Textarea
                   label="Job Description"
                   value={jobDescription}
-                  onChange={(e) => setJobDescription(e.target.value)}
+                  onChange={(e) => {
+                    const text = e.target.value;
+                    setJobDescription(text);
+                    // Attempt to parse JSON payload if user pasted a job posting object
+                    try {
+                      const maybeJson = JSON.parse(text);
+                      if (
+                        maybeJson &&
+                        (typeof maybeJson === "object") &&
+                        ("title" in maybeJson || "company_name" in maybeJson || "job_location" in maybeJson)
+                      ) {
+                        useResumeStore.getState().setJobPostingDraft({
+                          close_date: maybeJson.close_date,
+                          company_industry: maybeJson.company_industry,
+                          company_location: maybeJson.company_location,
+                          company_name: maybeJson.company_name,
+                          company_website: maybeJson.company_website,
+                          description: maybeJson.description,
+                          job_location: maybeJson.job_location,
+                          posted_date: maybeJson.posted_date,
+                          requirements: maybeJson.requirements,
+                          title: maybeJson.title,
+                        });
+                      } else {
+                        useResumeStore.getState().setJobPostingDraft(null);
+                      }
+                    } catch {
+                      // Not JSON; clear any previous draft
+                      useResumeStore.getState().setJobPostingDraft(null);
+                    }
+                  }}
                   placeholder="Paste job description here..."
                   className="min-h-[120px]"
                   aria-label="Job description text area"
