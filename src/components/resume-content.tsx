@@ -41,8 +41,10 @@ export function ResumeContent({
       if (response?.job_id) {
         setJobId(response.job_id);
         setResumeTitle(response.title);
+        // Use functional update to access current state without adding resumeData as dependency
+        const currentResumeData = useResumeStore.getState().resumeData;
         setResumeData({
-          personalInfo: resumeData?.personalInfo || {},
+          personalInfo: currentResumeData?.personalInfo || {},
           education: response?.sections?.education || [],
           experience: response?.sections?.work_experience || [],
           projects: response?.sections?.projects || [],
@@ -65,7 +67,7 @@ export function ResumeContent({
       }
       setIsLoading(false);
     }
-  }, [initialResumeId, setResumeData, setJobId, setResumeTitle, resumeData]);
+  }, [initialResumeId, setResumeData, setJobId, setResumeTitle]);
 
   useEffect(() => {
     if (initialResumeId) {
