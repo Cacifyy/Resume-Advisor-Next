@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { v4 as uuidv4 } from "uuid";
 import type { ResumeData } from "@/types/resume";
 import {
@@ -58,7 +59,9 @@ interface ResumeStore {
   resetStore: () => void;
 }
 
-export const useResumeStore = create<ResumeStore>((set, get) => ({
+export const useResumeStore = create<ResumeStore>()(
+  persist(
+    (set, get) => ({
   resumeId: null,
   setResumeId: (id) => set({ resumeId: id }),
 
@@ -326,7 +329,19 @@ export const useResumeStore = create<ResumeStore>((set, get) => ({
       isCreating: false,
       saveError: null,
     }),
-}));
+    }),
+    {
+      name: "resume-storage",
+      partialize: (state) => ({
+        resumeId: state.resumeId,
+        resumeTitle: state.resumeTitle,
+        jobId: state.jobId,
+        resumeData: state.resumeData,
+        currentStep: state.currentStep,
+      }),
+    },
+  ),
+);
 
 export default useResumeStore;
 
