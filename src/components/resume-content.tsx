@@ -12,7 +12,7 @@ import { getJobPosting, getResumeById } from "@/lib/api-services";
 import { toast } from "sonner";
 
 interface ResumeContentProps {
-  resumeId?: string | null;
+  resumeId?: number | null;
 }
 
 export function ResumeContent({
@@ -65,7 +65,7 @@ export function ResumeContent({
           false,
         );
 
-        const jobPosting = await getJobPosting(response.job_id.toString());
+        const jobPosting = await getJobPosting(response.job_id);
         useJobPostingStore.getState().setJobPosting(jobPosting, false);
         useJobPostingStore
           .getState()
@@ -134,6 +134,7 @@ export function ResumeContent({
   ]);
 
   // Trigger auto-save for resume (only if jobId exists and user has made modifications)
+  // The saveResume function checks isDirty and isSaving to prevent duplicate saves
   useEffect(() => {
     if (isResumeDirty && jobId) {
       debouncedSaveResume();
